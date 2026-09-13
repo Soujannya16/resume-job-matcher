@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { parseArgs } from 'node:util';
 import path from 'node:path';
 
-export type ApiMode = 'anthropic' | 'openai' | 'openrouter';
+export type ApiMode = 'anthropic' | 'openai' | 'openrouter' | 'groq';
 
 /**
  * Filesystem-safe slug for a job description, so screening the same candidates
@@ -37,13 +37,16 @@ export interface Config {
 // Anthropic has no embeddings API, so --prefilter is unavailable in that mode.
 export const EMBEDDING_MODELS: Partial<Record<ApiMode, string>> = {
   openai: process.env.OPENAI_EMBEDDING_MODEL ?? 'text-embedding-3-small',
-  openrouter: process.env.OPENROUTER_EMBEDDING_MODEL ?? 'openai/text-embedding-3-small',
+  openrouter:
+    process.env.OPENROUTER_EMBEDDING_MODEL ?? 'openai/text-embedding-3-small',
+  groq: process.env.GROQ_EMBEDDING_MODEL ?? 'nomic-embed-text-v1.5',
 };
 
 export const MODELS: Record<ApiMode, string> = {
   anthropic: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5',
   openai: process.env.OPENAI_MODEL ?? 'gpt-5.6-luna',
   openrouter: process.env.OPENROUTER_MODEL ?? 'openrouter/auto',
+  groq: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
 };
 
 export function loadConfig(argv: string[]): Config {
@@ -71,11 +74,12 @@ Positionals:
   pdf_folder      Folder with resume PDFs (default: src)
 
 Options:
-  --api <mode>          anthropic | openai | openrouter (default: openrouter -> openrouter/auto)
+  --api <mode>          anthropic | openai | openrouter | groq
+                        (default: openrouter -> openrouter/auto)
   --concurrency <n>     Parallel resume evaluations (default: 4)
   --prefilter <n>       Embed resumes and keep only the n closest to the job before
                         scoring (default: 0 = off). Cheap first cut for large pools.
-                        Needs --api openai or openrouter; Anthropic has no embeddings.
+                        Needs --api openai, openrouter, or groq; Anthropic has no embeddings.
   --threshold <n>       Invite threshold for email generation (default: 90)
   --no-email            Skip candidate email generation
   --analyze-jd          Rank the job description and write job_description_enhanced.txt
@@ -84,13 +88,15 @@ Options:
   -h, --help            Show this help
 
 Env: ANTHROPIC_API_KEY (or CLAUDE_API_KEY), OPENAI_API_KEY, OPENROUTER_API_KEY,
-     ANTHROPIC_MODEL, OPENAI_MODEL, OPENROUTER_MODEL`);
+     GROQ_API_KEY, ANTHROPIC_MODEL, OPENAI_MODEL, OPENROUTER_MODEL, GROQ_MODEL`);
     process.exit(0);
   }
 
   const mode = values.api as ApiMode;
-  if (!['anthropic', 'openai', 'openrouter'].includes(mode)) {
-    console.error(`Unknown --api mode: ${mode}. Use anthropic | openai | openrouter.`);
+  if (!['anthropic', 'openai', 'openrouter', 'groq'].includes(mode)) {
+    console.error(
+      `Unknown --api mode: ${mode}. Use anthropic | openai | openrouter | groq.`,
+    );
     process.exit(1);
   }
 

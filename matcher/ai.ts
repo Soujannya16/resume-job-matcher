@@ -1,4 +1,5 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
+import { createGroq } from '@ai-sdk/groq';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import type { LanguageModel } from 'ai';
@@ -32,11 +33,22 @@ export function getModel(mode: ApiMode): LanguageModel {
     }
     case 'openrouter': {
       const openrouter = createOpenRouter({
-        apiKey: requireKey('OPENROUTER_API_KEY', process.env.OPENROUTER_API_KEY),
+        apiKey: requireKey(
+          'OPENROUTER_API_KEY',
+          process.env.OPENROUTER_API_KEY,
+        ),
       });
       // openrouter/auto routes each request to a capable model; the
       // response-healing plugin repairs malformed JSON from weaker targets.
-      return openrouter(MODELS.openrouter, { plugins: [{ id: 'response-healing' }] });
+      return openrouter(MODELS.openrouter, {
+        plugins: [{ id: 'response-healing' }],
+      });
+    }
+    case 'groq': {
+      const groq = createGroq({
+        apiKey: requireKey('GROQ_API_KEY', process.env.GROQ_API_KEY),
+      });
+      return groq(MODELS.groq);
     }
   }
 }
@@ -45,7 +57,10 @@ export function getModel(mode: ApiMode): LanguageModel {
  * Embedding model for --prefilter. Anthropic has no embeddings API, so that mode
  * fails here with a usable instruction rather than at request time with a 404.
  */
-export function getEmbeddingModel(mode: ApiMode): { model: EmbeddingModel; id: string } {
+export function getEmbeddingModel(mode: ApiMode): {
+  model: EmbeddingModel;
+  id: string;
+} {
   const id = EMBEDDING_MODELS[mode];
   if (!id) {
     console.error(
@@ -59,6 +74,12 @@ export function getEmbeddingModel(mode: ApiMode): { model: EmbeddingModel; id: s
       apiKey: requireKey('OPENROUTER_API_KEY', process.env.OPENROUTER_API_KEY),
     });
     return { model: openrouter.textEmbeddingModel(id), id };
+  }
+  if (mode === 'groq') {
+    const groq = createGroq({
+      apiKey: requireKey('GROQ_API_KEY', process.env.GROQ_API_KEY),
+    });
+    return { model: groq.embeddingModel(id), id };
   }
   const openai = createOpenAI({
     apiKey: requireKey('OPENAI_API_KEY', process.env.OPENAI_API_KEY),
